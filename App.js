@@ -6,107 +6,98 @@
  * @flow strict-local
  */
 
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import type {Node} from 'react';
 import {
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   useColorScheme,
   View,
+  ScrollView,
 } from 'react-native';
 
 import {
   Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-const Section = ({children, title}): Node => {
-  const isDarkMode = useColorScheme() === 'dark';
+import { NativeBaseProvider, Container, Header, Content, Accordion, Center, Box } from 'native-base';
+import axios from 'axios';
+
+axios.defaults.baseURL = 'https://api.thecatapi.com/v1';
+axios.defaults.headers.common['x-api-key'] = 'DEMO-API-KEY';
+
+function AccordionComponent(props) {
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
+      <Box m={3}>
+        <Accordion>
           {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
+            props.cats.map((cat) => (
+                <Accordion.Item>
+                  <Accordion.Summary>
+                    {cat.name}
+                    <Accordion.Icon />
+                  </Accordion.Summary>
+                  <Accordion.Details>
+                    <Text>Country : {cat.origin}</Text>
+                    {cat.description}
+                    <Text>Temprament : {cat.temperament}</Text>
+                  </Accordion.Details>
+                </Accordion.Item>
+            ))
+          }
+        </Accordion>
+      </Box>
   );
-};
+}
 
 const App: () => Node = () => {
-  const isDarkMode = useColorScheme() === 'dark';
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const [state, setState] = useState({
+    isLoading: true,
+    cats: [],
+    page: 0,
+    limit: 10,
+    search: '',
+    isMax: false,
+    isLoadingLoad: false,
+  });
+
+  useEffect(() => loadData(), []);
+
+  const loadData = () => {
+    const { limit, page, cats } = state;
+    const url = `/breeds?limit=${limit}&page=${page}`;
+    axios
+        .get(url)
+        .then((res) => {
+          console.log(res.data);
+          let result = res.data;
+          setTimeout(() => {
+            setState({
+              cats: cats.concat(result),
+              page: page + 1,
+              isMax: result.length === 0,
+              isLoading: false,
+              isLoadingLoad: false,
+            });
+          }, 1000)
+        })
+        .catch((error) => {
+          console.error(error);
+        });
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.js</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    <NativeBaseProvider>
+      <Center flex={1}>
+        <ScrollView>
+          <AccordionComponent cats={state.cats} />
+        </ScrollView>
+      </Center>
+    </NativeBaseProvider>
   );
 };
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
 
 export default App;
