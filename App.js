@@ -1,103 +1,111 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
+import React, { Component } from 'react';
+import { StyleSheet, FlatList, View, Text, ActivityIndicator } from 'react-native';
+import {Accordion, Box, Center, NativeBaseProvider, IconButton, Input} from "native-base";
+export default class App extends Component {
+  constructor(props) {
+    super(props)
+    this.state = {
+      data: [],
+      page: 1,
+      isLoading: false
+    }
+  }
+  componentDidMount() {
+    this.setState({isLoading: true}, this.getData)
+  }
 
-import React, {useState, useEffect} from 'react';
-import type {Node} from 'react';
-import {
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-  ScrollView,
-} from 'react-native';
+  getData = async () => {
+    const apiURL = `https://api.thecatapi.com/v1/breeds?limit=10&page=${this.state.page}`;
 
-import {
-  Colors,
-} from 'react-native/Libraries/NewAppScreen';
+    fetch(apiURL, {
+      headers: {"x-api-key": "DEMO-API-KEY"}
+    }).then((res) => res.json())
+      .then((resJson) => {
+        this.setState({
+          data: this.state.data.concat(resJson),
+          isLoading: false
+        })
+      })
+  }
 
-import { NativeBaseProvider, Container, Header, Content, Accordion, Center, Box } from 'native-base';
-import axios from 'axios';
-
-axios.defaults.baseURL = 'https://api.thecatapi.com/v1';
-axios.defaults.headers.common['x-api-key'] = 'DEMO-API-KEY';
-
-function AccordionComponent(props) {
-  return (
-      <Box m={3}>
+  accordionComponent = ({item}) => {
+    return (
+      <Box>
         <Accordion>
-          {
-            props.cats.map((cat) => (
-                <Accordion.Item>
-                  <Accordion.Summary>
-                    {cat.name}
-                    <Accordion.Icon />
-                  </Accordion.Summary>
-                  <Accordion.Details>
-                    <Text>Country : {cat.origin}</Text>
-                    {cat.description}
-                    <Text>Temprament : {cat.temperament}</Text>
-                  </Accordion.Details>
-                </Accordion.Item>
-            ))
-          }
+          <Accordion.Item>
+            <Accordion.Summary>
+              <Text>{ item.name }</Text>
+              <Accordion.Icon />
+            </Accordion.Summary>
+            <Accordion.Details>
+              <Text>Country : {item.origin}</Text>
+              <Text>{item.description}</Text>
+              <Text>Temprament : {item.temperament}</Text>
+            </Accordion.Details>
+          </Accordion.Item>
         </Accordion>
       </Box>
-  );
+    );
+  }
+
+  renderFooter = () => {
+    return (
+      this.state.isLoading ?
+        <View style={styles.loader}>
+          <ActivityIndicator size="large"/>
+        </View> : null
+    )
+  }
+
+  handleLoadMore = () => {
+    console.log('load more called')
+    this.setState({ page: this.state.page + 1, isLoading: true }, this.getData)
+  }
+
+  _onChangeSearchText(text) {
+
+    console.log(text);
+
+  }
+
+  render() {
+    return (
+      <NativeBaseProvider>
+        <Center flex={1}>
+          
+          <Input
+            placeholder="Search..."
+            variant="rounded"
+            InputRightElement={
+              <IconButton
+                borderRadius="pill"
+              />
+            }
+            onChangeText={this._onChangeSearchText.bind(this)}
+          />
+           
+          <FlatList
+            style={styles.container}
+            data={this.state.data}
+            renderItem={this.accordionComponent}
+            keyExtractor={(item, index) => index.toString()}
+            onEndReached={this.handleLoadMore}
+            onEndReachedThreshold={1}
+            ListFooterComponent={this.renderFooter}
+          />
+        </Center>
+      </NativeBaseProvider>
+    )
+  }
 }
 
-const App: () => Node = () => {
-
-  const [state, setState] = useState({
-    isLoading: true,
-    cats: [],
-    page: 0,
-    limit: 10,
-    search: '',
-    isMax: false,
-    isLoadingLoad: false,
-  });
-
-  useEffect(() => loadData(), []);
-
-  const loadData = () => {
-    const { limit, page, cats } = state;
-    const url = `/breeds?limit=${limit}&page=${page}`;
-    axios
-        .get(url)
-        .then((res) => {
-          console.log(res.data);
-          let result = res.data;
-          setTimeout(() => {
-            setState({
-              cats: cats.concat(result),
-              page: page + 1,
-              isMax: result.length === 0,
-              isLoading: false,
-              isLoadingLoad: false,
-            });
-          }, 1000)
-        })
-        .catch((error) => {
-          console.error(error);
-        });
-  };
-
-  return (
-    <NativeBaseProvider>
-      <Center flex={1}>
-        <ScrollView>
-          <AccordionComponent cats={state.cats} />
-        </ScrollView>
-      </Center>
-    </NativeBaseProvider>
-  );
-};
-
-export default App;
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 20,
+    backgroundColor: '#f5fcff'
+  },
+  loader: {
+    marginTop: 10,
+    alignItems: 'center'
+  }
+})
