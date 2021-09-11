@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { StyleSheet, FlatList, View, Text, ActivityIndicator } from 'react-native';
-import {Accordion, Box, Center, NativeBaseProvider, IconButton, Input} from "native-base";
+import {Accordion, Center, NativeBaseProvider, IconButton, Input, Heading} from "native-base";
 import axios from 'axios';
 
 axios.defaults.baseURL = 'https://api.thecatapi.com/v1';
@@ -11,9 +11,9 @@ export default class App extends Component {
     super(props)
     this.state = {
       data: [],
-      page: 1,
-      isLoading: true,
+      page: 0,
       search: '',
+      isLoading: true,
       isSearch: false
     }
   }
@@ -22,29 +22,68 @@ export default class App extends Component {
     this.loadData();
   }
 
-  loadData = () => {
-    this.setState({isLoading: true})
-    const { page, data, isSearch } = this.state;
+  loadData = async () => {
+    await this.setState({isLoading: true})
+    const { page, data, isSearch } = await this.state;
     const url = `/breeds?limit=10&page=${page}`;
-    !isSearch && axios
-    // axios
+    !isSearch && await axios
       .get(url)
-      .then((res) => {
-        let result = res.data;
-        this.setState({
+      .then(async (res) => {
+        let result = await res.data;
+        await this.setState({
           data: data.concat(result),
           page: page + 1,
-          isLoading: false,
+          isLoading: false
         });
+        console.log('load data isi search', this.state.search);
+        console.log('load data panjang search', this.state.search.length);
+        console.log('load data panjang data', this.state.data.length);
+        console.log('load data isSearch', this.state.isSearch);
+        console.log('load data isLoading', this.state.isLoading);
       })
       .catch((error) => {
         console.error(error);
       });
   };
 
+  searchData = async () => {
+    await this.setState({isLoading: true})
+    await axios.get(`/breeds/search?q=${this.state.search}`).then(async (res) => {
+      let result = await res.data;
+      await this.setState({data: result, isLoading: false});
+      console.log('search data isi search', this.state.search);
+      console.log('search data panjang search', this.state.search.length);
+      console.log('search data panjang data', this.state.data.length);
+      console.log('search data isSearch', this.state.isSearch);
+      console.log('search data isLoading', this.state.isLoading);
+    }).catch((error) => {
+      console.error(error);
+    });
+  };
+
+  async _onChangeSearchText(text) {
+    console.log('_onChangeSearchText called')
+    this.setState(
+      {
+        search: text,
+        page: 0,
+        isSearch: true,
+        data: [],
+        isLoading: true
+      },
+      async () => {
+        if (this.state.search && this.state.search.length > 0) {
+          await this.searchData();
+        } else {
+          await this.setState({isSearch: false})
+          await this.loadData();
+        }
+      }
+    );
+  }
+
   accordionComponent = ({item}) => {
     return (
-      // <Box>
       <Accordion>
         <Accordion.Item>
           <Accordion.Summary>
@@ -58,7 +97,6 @@ export default class App extends Component {
           </Accordion.Details>
         </Accordion.Item>
       </Accordion>
-      // </Box>
     );
   }
 
@@ -71,42 +109,20 @@ export default class App extends Component {
     )
   }
   
-  searchData = () => {
-    this.setState({isLoading: true})
-    axios.get(`/breeds/search?q=${this.state.search}`).then((res) => {
-      let result = res.data;
-      this.setState({ isSearch: true, data: result, isLoading: false });
-    });
-  };
-
-  _onChangeSearchText(text) {
-    this.setState(
-      {
-        search: text,
-        page: 0,
-      },
-      () => {
-        if (this.state.search && this.state.search.length > 0) {
-          console.log('search data')
-          this.searchData();
-        } else {
-          console.log('get data')
-          this.loadData();
-        }
-        console.log('isi text', text);
-        console.log('panjang text', this.state.search.length);
-        console.log('panjang data', this.state.data.length);
-      }
-    );
-
+  renderEmpty = () => {
+    return (
+      <View>
+        <Text>Sorry data is not yet available</Text>
+      </View>
+    )
   }
 
   render() {
-    const {data} = this.state;
+    const {data, isSearch, isLoading} = this.state;
     return (
       <NativeBaseProvider>
         <Center>
-          
+          <Heading size="md" style={{paddingVertical: 10}}>Cats Catalogue</Heading>
           <Input
             placeholder="Search cat name here ..."
             variant="rounded"
@@ -117,15 +133,20 @@ export default class App extends Component {
             }
             onChangeText={this._onChangeSearchText.bind(this)}
           />
-          <FlatList
-            style={styles.container}
-            data={data}
-            renderItem={this.accordionComponent}
-            keyExtractor={(item, index) => index.toString()}
-            onEndReached={this.loadData}
-            onEndReachedThreshold={1}
-            ListFooterComponent={this.renderFooter}
-          />
+          
+          {
+            data.length === 0 && !isLoading ? 
+              this.renderEmpty() :
+              <FlatList
+                style={styles.container}
+                data={data}
+                renderItem={this.accordionComponent}
+                keyExtractor={(item, index) => index.toString()}
+                onEndReached={!isSearch && this.loadData}
+                onEndReachedThreshold={1}
+                ListFooterComponent={this.renderFooter}
+              />   
+          }
         </Center>
       </NativeBaseProvider>
     )
@@ -138,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5fcff'
   },
   loader: {
-    marginTop: 10,
+    paddingBottom: 80,
     alignItems: 'center'
   }
 })
